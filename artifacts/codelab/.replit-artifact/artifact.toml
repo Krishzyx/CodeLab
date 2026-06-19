@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "CodeLab"
+version = "1.0.0"
+id = "artifacts/codelab"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21236
+
+[services.development]
+run = "pnpm --filter @workspace/codelab run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/codelab", "run", "build" ]
+publicDir = "artifacts/codelab/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21236"
+BASE_PATH = "/"

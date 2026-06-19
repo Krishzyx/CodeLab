@@ -1,22 +1,26 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CodeLab – LeetCode-style competitive coding platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: problems
+  - name: submissions
+  - name: contests
+  - name: leaderboard
+  - name: stats
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +28,794 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── PROBLEMS ──────────────────────────────────────────────────────────────
+  /problems:
+    get:
+      operationId: listProblems
+      tags: [problems]
+      summary: List problems with filters
+      parameters:
+        - name: difficulty
+          in: query
+          schema:
+            type: string
+            enum: [easy, medium, hard]
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [solved, unsolved, attempted]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of problems
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemListResponse"
+
+    post:
+      operationId: createProblem
+      tags: [problems]
+      summary: Create a new problem (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProblemInput"
+      responses:
+        "201":
+          description: Problem created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /problems/{id}:
+    get:
+      operationId: getProblem
+      tags: [problems]
+      summary: Get problem detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Problem detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      operationId: updateProblem
+      tags: [problems]
+      summary: Update problem (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProblemUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+    delete:
+      operationId: deleteProblem
+      tags: [problems]
+      summary: Delete problem (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── SUBMISSIONS ───────────────────────────────────────────────────────────
+  /submissions:
+    get:
+      operationId: listSubmissions
+      tags: [submissions]
+      summary: List submissions for the current user
+      parameters:
+        - name: problemId
+          in: query
+          schema:
+            type: integer
+        - name: language
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Submissions list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmissionListResponse"
+
+    post:
+      operationId: submitCode
+      tags: [submissions]
+      summary: Submit code for a problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmissionInput"
+      responses:
+        "202":
+          description: Submission accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /submissions/{id}:
+    get:
+      operationId: getSubmission
+      tags: [submissions]
+      summary: Get submission result
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Submission detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /submissions/run:
+    post:
+      operationId: runCode
+      tags: [submissions]
+      summary: Run code against custom test input (no submission)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunCodeInput"
+      responses:
+        "200":
+          description: Run result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResult"
+
+  # ── CONTESTS ──────────────────────────────────────────────────────────────
+  /contests:
+    get:
+      operationId: listContests
+      tags: [contests]
+      summary: List contests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [upcoming, active, ended]
+      responses:
+        "200":
+          description: Contest list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contest"
+
+    post:
+      operationId: createContest
+      tags: [contests]
+      summary: Create contest (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContestInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contest"
+
+  /contests/{id}:
+    get:
+      operationId: getContest
+      tags: [contests]
+      summary: Get contest detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Contest detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contest"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      operationId: updateContest
+      tags: [contests]
+      summary: Update contest (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContestUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contest"
+
+    delete:
+      operationId: deleteContest
+      tags: [contests]
+      summary: Delete contest (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /contests/{id}/register:
+    post:
+      operationId: registerContest
+      tags: [contests]
+      summary: Register for a contest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /contests/{id}/leaderboard:
+    get:
+      operationId: getContestLeaderboard
+      tags: [contests]
+      summary: Get contest leaderboard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
+  # ── GLOBAL LEADERBOARD ────────────────────────────────────────────────────
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Global user leaderboard
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
+  # ── STATS / DASHBOARD ─────────────────────────────────────────────────────
+  /stats/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [stats]
+      summary: Dashboard summary stats for current user
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /stats/problems:
+    get:
+      operationId: getProblemStats
+      tags: [stats]
+      summary: Problem difficulty breakdown counts
+      responses:
+        "200":
+          description: Problem stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemStats"
+
+  /users/{username}:
+    get:
+      operationId: getUserProfile
+      tags: [auth]
+      summary: Get public user profile
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+# ── COMPONENTS ──────────────────────────────────────────────────────────────
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    # AUTH
+    User:
+      type: object
+      required: [id, username, email, role, createdAt]
+      properties:
+        id:          { type: integer }
+        username:    { type: string }
+        email:       { type: string }
+        role:        { type: string, enum: [user, admin] }
+        avatarUrl:   { type: ["string", "null"] }
+        bio:         { type: ["string", "null"] }
+        createdAt:   { type: string }
+
+    UserProfile:
+      type: object
+      required: [id, username, role, createdAt, solvedCount, rank]
+      properties:
+        id:          { type: integer }
+        username:    { type: string }
+        role:        { type: string }
+        avatarUrl:   { type: ["string", "null"] }
+        bio:         { type: ["string", "null"] }
+        createdAt:   { type: string }
+        solvedCount: { type: integer }
+        rank:        { type: integer }
+
+    RegisterInput:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:  { type: string, minLength: 3 }
+        email:     { type: string }
+        password:  { type: string, minLength: 6 }
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string }
+        password: { type: string }
+
+    AuthResponse:
+      type: object
+      required: [user, token]
+      properties:
+        user:  { $ref: "#/components/schemas/User" }
+        token: { type: string }
+
+    # PROBLEMS
+    TestCase:
+      type: object
+      required: [input, expectedOutput]
+      properties:
+        input:          { type: string }
+        expectedOutput: { type: string }
+        isHidden:       { type: boolean }
+
+    Problem:
+      type: object
+      required: [id, title, slug, difficulty, description, tags, createdAt, solvedCount, acceptanceRate]
+      properties:
+        id:              { type: integer }
+        title:           { type: string }
+        slug:            { type: string }
+        difficulty:      { type: string, enum: [easy, medium, hard] }
+        description:     { type: string }
+        constraints:     { type: ["string", "null"] }
+        hints:           { type: ["string", "null"] }
+        tags:            { type: array, items: { type: string } }
+        starterCode:     { type: ["string", "null"] }
+        testCases:       { type: array, items: { $ref: "#/components/schemas/TestCase" } }
+        createdAt:       { type: string }
+        solvedCount:     { type: integer }
+        acceptanceRate:  { type: number }
+        userStatus:      { type: ["string", "null"] }
+
+    ProblemInput:
+      type: object
+      required: [title, difficulty, description, tags]
+      properties:
+        title:       { type: string }
+        difficulty:  { type: string, enum: [easy, medium, hard] }
+        description: { type: string }
+        constraints: { type: string }
+        hints:       { type: string }
+        tags:        { type: array, items: { type: string } }
+        starterCode: { type: string }
+        testCases:   { type: array, items: { $ref: "#/components/schemas/TestCase" } }
+
+    ProblemUpdate:
+      type: object
+      properties:
+        title:       { type: string }
+        difficulty:  { type: string, enum: [easy, medium, hard] }
+        description: { type: string }
+        constraints: { type: string }
+        hints:       { type: string }
+        tags:        { type: array, items: { type: string } }
+        starterCode: { type: string }
+        testCases:   { type: array, items: { $ref: "#/components/schemas/TestCase" } }
+
+    ProblemListResponse:
+      type: object
+      required: [problems, total, page, limit]
+      properties:
+        problems: { type: array, items: { $ref: "#/components/schemas/Problem" } }
+        total:    { type: integer }
+        page:     { type: integer }
+        limit:    { type: integer }
+
+    # SUBMISSIONS
+    Submission:
+      type: object
+      required: [id, problemId, userId, language, code, status, createdAt]
+      properties:
+        id:           { type: integer }
+        problemId:    { type: integer }
+        userId:       { type: integer }
+        language:     { type: string }
+        code:         { type: string }
+        status:       { type: string, enum: [pending, running, accepted, wrong_answer, time_limit_exceeded, runtime_error, compilation_error] }
+        runtime:      { type: ["integer", "null"] }
+        memory:       { type: ["integer", "null"] }
+        output:       { type: ["string", "null"] }
+        errorMessage: { type: ["string", "null"] }
+        createdAt:    { type: string }
+        problemTitle: { type: ["string", "null"] }
+
+    SubmissionInput:
+      type: object
+      required: [problemId, language, code]
+      properties:
+        problemId:  { type: integer }
+        language:   { type: string }
+        code:       { type: string }
+        contestId:  { type: ["integer", "null"] }
+
+    SubmissionListResponse:
+      type: object
+      required: [submissions, total, page, limit]
+      properties:
+        submissions: { type: array, items: { $ref: "#/components/schemas/Submission" } }
+        total:       { type: integer }
+        page:        { type: integer }
+        limit:       { type: integer }
+
+    RunCodeInput:
+      type: object
+      required: [language, code, input]
+      properties:
+        language: { type: string }
+        code:     { type: string }
+        input:    { type: string }
+
+    RunResult:
+      type: object
+      required: [status, output]
+      properties:
+        status:      { type: string }
+        output:      { type: string }
+        stderr:      { type: ["string", "null"] }
+        runtime:     { type: ["integer", "null"] }
+        memory:      { type: ["integer", "null"] }
+
+    # CONTESTS
+    Contest:
+      type: object
+      required: [id, title, description, startTime, endTime, status, problemCount, participantCount, createdAt]
+      properties:
+        id:               { type: integer }
+        title:            { type: string }
+        description:      { type: string }
+        startTime:        { type: string }
+        endTime:          { type: string }
+        status:           { type: string, enum: [upcoming, active, ended] }
+        problemCount:     { type: integer }
+        participantCount: { type: integer }
+        problemIds:       { type: array, items: { type: integer } }
+        isRegistered:     { type: boolean }
+        createdAt:        { type: string }
+
+    ContestInput:
+      type: object
+      required: [title, description, startTime, endTime]
+      properties:
+        title:       { type: string }
+        description: { type: string }
+        startTime:   { type: string }
+        endTime:     { type: string }
+        problemIds:  { type: array, items: { type: integer } }
+
+    ContestUpdate:
+      type: object
+      properties:
+        title:       { type: string }
+        description: { type: string }
+        startTime:   { type: string }
+        endTime:     { type: string }
+        problemIds:  { type: array, items: { type: integer } }
+
+    LeaderboardEntry:
+      type: object
+      required: [rank, userId, username, score, solvedCount]
+      properties:
+        rank:        { type: integer }
+        userId:      { type: integer }
+        username:    { type: string }
+        avatarUrl:   { type: ["string", "null"] }
+        score:       { type: integer }
+        solvedCount: { type: integer }
+        runtime:     { type: ["integer", "null"] }
+
+    # STATS
+    DashboardStats:
+      type: object
+      required: [totalSolved, easySolved, mediumSolved, hardSolved, totalProblems, easyTotal, mediumTotal, hardTotal, submissionsCount, acceptanceRate, rank, streak]
+      properties:
+        totalSolved:      { type: integer }
+        easySolved:       { type: integer }
+        mediumSolved:     { type: integer }
+        hardSolved:       { type: integer }
+        totalProblems:    { type: integer }
+        easyTotal:        { type: integer }
+        mediumTotal:      { type: integer }
+        hardTotal:        { type: integer }
+        submissionsCount: { type: integer }
+        acceptanceRate:   { type: number }
+        rank:             { type: integer }
+        streak:           { type: integer }
+
+    ProblemStats:
+      type: object
+      required: [total, easy, medium, hard]
+      properties:
+        total:  { type: integer }
+        easy:   { type: integer }
+        medium: { type: integer }
+        hard:   { type: integer }
